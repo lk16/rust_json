@@ -1,10 +1,29 @@
 
 # Rust playground
 
+Barebone JSON parser
+
+### Example Usage
+
+```sh
+cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
+# outputs: Object({"hello": Array([Integer(123), Boolean(false), Boolean(true), Object({"foo": Null}), Integer(3)])})
+```
+
+### Features
+* Tokenizer
+* Parser
+* Tests
+
+### Missing features
+* Support for floats
+* Support for string escape sequences
+* Handling errors in parser
+
+### Disclaimer
+
 This package was created to remember how rust packaging works.
 The actual code inside this project is probably not rocket science.
-
----
 
 ### Setup and run project
 
@@ -20,8 +39,6 @@ cargo run -q
 cargo build
 ./target/debug/rust_playground
 ```
-
----
 
 ### Tools used while developing
 

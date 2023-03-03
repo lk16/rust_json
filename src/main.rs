@@ -4,7 +4,7 @@
 #![allow(unreachable_code)]
 
 use std::collections::HashMap;
-use std::fmt;
+use std::{env, fmt};
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
@@ -376,16 +376,24 @@ fn parse(tokens: Vec<Token>) -> Json {
 }
 
 fn main() {
-    let tokenized = tokenize("\"foo\" 123 , [] {} \"hello world\" false null truetrue");
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 2 {
+        println!("Usage: {} <json string>", args[0]);
+        std::process::exit(1);
+    }
+
+    let tokenized = tokenize(&args[1]);
 
     match tokenized {
         Ok(tokens) => {
-            println!("Got {} token(s)", tokens.len());
-            for token in tokens.iter() {
-                println!("- {}", token);
-            }
+            let json = parse(tokens);
+            println!("{:?}", json);
         }
-        Err(error) => println!("Parse Error at offset {}: {}", error.offset, error.message),
+        Err(error) => println!(
+            "Tokenize Error at offset {}: {}",
+            error.offset, error.message
+        ),
     }
 }
 
@@ -492,6 +500,13 @@ mod tests {
             (
                 "{\"foo\": 1337}",
                 Json::Object(HashMap::from([("foo".to_owned(), Json::Integer(1337))])),
+            ),
+            (
+                "{\"foo\": 1337, \"bar\": [69]}",
+                Json::Object(HashMap::from([
+                    ("foo".to_owned(), Json::Integer(1337)),
+                    ("bar".to_owned(), Json::Array(vec![Json::Integer(69)])),
+                ])),
             ),
         ];
 
