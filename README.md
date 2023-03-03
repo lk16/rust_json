@@ -20,7 +20,6 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 * Support for string escape sequences
 
 ### Features to be added soon
-* Moving tokenizer and parser to separate file
 * Test Coverage
 * Adding missing tests
 * CI
@@ -62,3 +61,5 @@ watch -cn 1 -- cargo --color=always run
 # Watch rust test output while editing
 watch -cn 1 -- cargo --color=always test -q
 ```
+
+[Split Rust code into multiple files](https://rust-classes.com/chapter_4_3.html#chapter-43---organizing-code)
