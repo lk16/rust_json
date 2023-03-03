@@ -1,8 +1,3 @@
-// TODO remove when done
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unreachable_code)]
-
 use std::collections::HashMap;
 use std::{env, fmt};
 
@@ -25,11 +20,11 @@ enum TokenType {
 #[derive(Debug, PartialEq)]
 struct TokenizeError {
     offset: usize,
-    message: &'static str,
+    message: String,
 }
 
 impl TokenizeError {
-    fn new(offset: usize, message: &'static str) -> Self {
+    fn new(offset: usize, message: String) -> Self {
         Self { offset, message }
     }
 }
@@ -38,6 +33,7 @@ impl TokenizeError {
 struct Token {
     type_: TokenType,
     value: String,
+    offset: usize,
 }
 
 impl fmt::Display for Token {
@@ -47,10 +43,11 @@ impl fmt::Display for Token {
 }
 
 impl Token {
-    fn new(type_: TokenType, value: &str) -> Self {
+    fn new(type_: TokenType, value: &str, offset: usize) -> Self {
         Self {
             type_,
             value: value.to_owned(),
+            offset,
         }
     }
 
@@ -97,7 +94,10 @@ impl Tokenizer {
                         if c.is_ascii_whitespace() {
                             self.tokenize_whitespace()
                         } else {
-                            Err(TokenizeError::new(self.offset, "Unhandled character"))
+                            Err(TokenizeError::new(
+                                self.offset,
+                                "Unhandled character".to_owned(),
+                            ))
                         }
                     }
                 }
@@ -121,11 +121,14 @@ impl Tokenizer {
         type_: TokenType,
     ) -> Result<Token, TokenizeError> {
         if self.input.split_at(self.offset).1.starts_with(literal) {
-            let token = Token::new(type_, literal);
+            let token = Token::new(type_, literal, self.offset);
             return Ok(token);
         }
         // TODO make error message better
-        Err(TokenizeError::new(self.offset, "expected literal"))
+        Err(TokenizeError::new(
+            self.offset,
+            format!("Expected literal `{}`", literal),
+        ))
     }
 
     fn tokenize_integer(&self) -> Result<Token, TokenizeError> {
@@ -140,7 +143,11 @@ impl Tokenizer {
             }
         }
 
-        let token = Token::new(TokenType::Integer, &self.input[self.offset..int_end_offset]);
+        let token = Token::new(
+            TokenType::Integer,
+            &self.input[self.offset..int_end_offset],
+            self.offset,
+        );
         Ok(token)
     }
 
@@ -154,12 +161,12 @@ impl Tokenizer {
         match quote_distance {
             None => Err(TokenizeError::new(
                 self.offset,
-                "No string-terminating quote found",
+                "No string-terminating quote found".to_owned(),
             )),
             Some(quote_distance) => {
                 let str_end_offset = self.offset + quote_distance + 2;
                 let value = &self.input[self.offset..str_end_offset];
-                let token = Token::new(TokenType::String, value);
+                let token = Token::new(TokenType::String, value, self.offset);
                 Ok(token)
             }
         }
@@ -180,6 +187,7 @@ impl Tokenizer {
         let token = Token::new(
             TokenType::Whitespace,
             &self.input[self.offset..ws_end_offset],
+            self.offset,
         );
         Ok(token)
     }
@@ -411,59 +419,66 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let cases: Vec<(&str, Result<Vec<Token>, TokenizeError>)> = vec![
-            ("null", Ok(vec![Token::new(TokenType::Null, "null")])),
-            ("true", Ok(vec![Token::new(TokenType::True, "true")])),
-            ("false", Ok(vec![Token::new(TokenType::False, "false")])),
-            (":", Ok(vec![Token::new(TokenType::Colon, ":")])),
-            ("[", Ok(vec![Token::new(TokenType::ArrayStart, "[")])),
-            ("]", Ok(vec![Token::new(TokenType::ArrayEnd, "]")])),
-            ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{")])),
-            ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}")])),
-            (",", Ok(vec![Token::new(TokenType::Comma, ",")])),
-            ("1234", Ok(vec![Token::new(TokenType::Integer, "1234")])),
+            ("null", Ok(vec![Token::new(TokenType::Null, "null", 0)])),
+            ("true", Ok(vec![Token::new(TokenType::True, "true", 0)])),
+            ("false", Ok(vec![Token::new(TokenType::False, "false", 0)])),
+            (":", Ok(vec![Token::new(TokenType::Colon, ":", 0)])),
+            ("[", Ok(vec![Token::new(TokenType::ArrayStart, "[", 0)])),
+            ("]", Ok(vec![Token::new(TokenType::ArrayEnd, "]", 0)])),
+            ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{", 0)])),
+            ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}", 0)])),
+            (",", Ok(vec![Token::new(TokenType::Comma, ",", 0)])),
+            ("1234", Ok(vec![Token::new(TokenType::Integer, "1234", 0)])),
             (
                 " \n\r ",
-                Ok(vec![Token::new(TokenType::Whitespace, " \n\r ")]),
+                Ok(vec![Token::new(TokenType::Whitespace, " \n\r ", 0)]),
             ),
             (
                 "\"Hello world\"",
-                Ok(vec![Token::new(TokenType::String, "\"Hello world\"")]),
+                Ok(vec![Token::new(TokenType::String, "\"Hello world\"", 0)]),
             ),
             (
                 "123 {} [] , : \"a b\" null\nfalsetrue",
                 Ok(vec![
-                    Token::new(TokenType::Integer, "123"),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::ObjectStart, "{"),
-                    Token::new(TokenType::ObjectEnd, "}"),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::ArrayStart, "["),
-                    Token::new(TokenType::ArrayEnd, "]"),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::Comma, ","),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::Colon, ":"),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::String, "\"a b\""),
-                    Token::new(TokenType::Whitespace, " "),
-                    Token::new(TokenType::Null, "null"),
-                    Token::new(TokenType::Whitespace, "\n"),
-                    Token::new(TokenType::False, "false"),
-                    Token::new(TokenType::True, "true"),
+                    Token::new(TokenType::Integer, "123", 0),
+                    Token::new(TokenType::Whitespace, " ", 3),
+                    Token::new(TokenType::ObjectStart, "{", 4),
+                    Token::new(TokenType::ObjectEnd, "}", 5),
+                    Token::new(TokenType::Whitespace, " ", 6),
+                    Token::new(TokenType::ArrayStart, "[", 7),
+                    Token::new(TokenType::ArrayEnd, "]", 8),
+                    Token::new(TokenType::Whitespace, " ", 9),
+                    Token::new(TokenType::Comma, ",", 10),
+                    Token::new(TokenType::Whitespace, " ", 11),
+                    Token::new(TokenType::Colon, ":", 12),
+                    Token::new(TokenType::Whitespace, " ", 13),
+                    Token::new(TokenType::String, "\"a b\"", 14),
+                    Token::new(TokenType::Whitespace, " ", 19),
+                    Token::new(TokenType::Null, "null", 20),
+                    Token::new(TokenType::Whitespace, "\n", 24),
+                    Token::new(TokenType::False, "false", 25),
+                    Token::new(TokenType::True, "true", 30),
                 ]),
             ),
             (
                 "broken",
                 Err(TokenizeError {
                     offset: 0,
-                    message: "Unhandled character",
+                    message: "Unhandled character".to_owned(),
                 }),
             ),
             (
                 "\"no closing quote",
                 Err(TokenizeError {
                     offset: 0,
-                    message: "No string-terminating quote found",
+                    message: "No string-terminating quote found".to_owned(),
+                }),
+            ),
+            (
+                "foo",
+                Err(TokenizeError {
+                    offset: 0,
+                    message: "Expected literal `false`".to_owned(),
                 }),
             ),
         ];
