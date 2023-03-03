@@ -6,16 +6,28 @@ use std::fmt;
 
 #[derive(Debug)]
 enum TokenType {
-    Null,
-    True,
-    False,
-    String,
-    Comma,
-    Colon,
-    ObjectStart,
-    ObjectEnd,
-    ArrayStart,
     ArrayEnd,
+    ArrayStart,
+    Colon,
+    Comma,
+    False,
+    Integer,
+    Null,
+    ObjectEnd,
+    ObjectStart,
+    String,
+    True,
+}
+
+struct TokenizeError {
+    offset: usize,
+    message: &'static str,
+}
+
+impl TokenizeError {
+    fn new(offset: usize, message: &'static str) -> Self {
+        Self { offset, message }
+    }
 }
 
 struct Token<'a> {
@@ -54,13 +66,21 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn tokenize(mut self) -> Result<Vec<Token<'a>>, usize> {
+    fn tokenize(mut self) -> Result<Vec<Token<'a>>, TokenizeError> {
         loop {
             let c = self.input.chars().nth(self.offset);
 
             let token_result = match c {
                 None => break,
-                Some('n') => self.tokenize_null(),
+                Some(',') => self.tokenize_literal(",", TokenType::Comma),
+                Some(':') => self.tokenize_literal(":", TokenType::Colon),
+                Some('[') => self.tokenize_literal("[", TokenType::ArrayStart),
+                Some(']') => self.tokenize_literal("]", TokenType::ArrayEnd),
+                Some('{') => self.tokenize_literal("{", TokenType::ObjectStart),
+                Some('}') => self.tokenize_literal("}", TokenType::ObjectEnd),
+                Some('f') => self.tokenize_literal("false", TokenType::False),
+                Some('n') => self.tokenize_literal("null", TokenType::Null),
+                Some('t') => self.tokenize_literal("true", TokenType::True),
                 Some(_) => todo!(),
             };
 
@@ -76,21 +96,26 @@ impl<'a> Tokenizer<'a> {
         Ok(self.tokens)
     }
 
-    fn tokenize_null(&self) -> Result<Token<'a>, usize> {
-        if self.input.starts_with("null") {
-            let token = Token::new(TokenType::Null, "null");
+    fn tokenize_literal(
+        &self,
+        literal: &'static str,
+        type_: TokenType,
+    ) -> Result<Token<'a>, TokenizeError> {
+        if self.input.split_at(self.offset).1.starts_with(literal) {
+            let token = Token::new(type_, literal);
             return Ok(token);
         }
-        Err(self.offset)
+        // TODO make error message better
+        Err(TokenizeError::new(self.offset, "expected literal"))
     }
 }
 
-fn tokenize(input: &str) -> Result<Vec<Token>, usize> {
+fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     Tokenizer::new(input).tokenize()
 }
 
 fn main() {
-    let tokenized = tokenize("null");
+    let tokenized = tokenize("null,,:[]{}falsetruefalsefalse");
 
     match tokenized {
         Ok(tokens) => {
@@ -99,6 +124,6 @@ fn main() {
                 println!("- {}", token);
             }
         }
-        Err(offset) => println!("Parse Error at offset {}", offset),
+        Err(error) => println!("Parse Error at offset {}: {}", error.offset, error.message),
     }
 }
