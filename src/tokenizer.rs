@@ -1,6 +1,4 @@
-use std::fmt;
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     ArrayEnd,
     ArrayStart,
@@ -28,21 +26,15 @@ impl TokenizeError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub type_: TokenType,
     pub value: String,
     pub offset: usize,
 }
 
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "type={:?} value={}", self.type_, self.value)
-    }
-}
-
 impl Token {
-    fn new(type_: TokenType, value: &str, offset: usize) -> Self {
+    pub fn new(type_: TokenType, value: &str, offset: usize) -> Self {
         Self {
             type_,
             value: value.to_owned(),

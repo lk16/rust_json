@@ -18,8 +18,15 @@ fn main() {
 
     match tokenized {
         Ok(tokens) => {
-            let json = parse(tokens);
-            println!("{:?}", json);
+            let parsed = parse(tokens);
+            match parsed {
+                Ok(json) => {
+                    println!("{:?}", json);
+                }
+                Err(error) => {
+                    println!("Parse Error at token {}: {}", error.offset, error.message)
+                }
+            }
         }
         Err(error) => println!(
             "Tokenize Error at offset {}: {}",

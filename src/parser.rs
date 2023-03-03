@@ -14,8 +14,8 @@ pub enum Json {
 
 #[derive(Debug, PartialEq)]
 pub struct ParseError {
-    offset: usize,
-    message: String,
+    pub offset: usize,
+    pub message: String,
 }
 
 impl ParseError {
@@ -38,13 +38,9 @@ impl Parser {
         self.tokens.retain(|x| x.type_ != TokenType::Whitespace);
         let parsed = self._parse()?;
 
-        if self.offset != self.tokens.len() {
-            let len = match self.tokens.last() {
-                None => 0,
-                Some(token) => token.offset + token.len(),
-            };
+        if self.offset < self.tokens.len() {
             return Err(ParseError::new(
-                len,
+                self.offset,
                 "Unexpected extra input found".to_owned(),
             ));
         }
@@ -53,6 +49,11 @@ impl Parser {
     }
 
     fn parse_string(&mut self) -> Result<Json, ParseError> {
+        let s = self.parse_string_key()?;
+        Ok(Json::String(s))
+    }
+
+    fn parse_string_key(&mut self) -> Result<String, ParseError> {
         let token = &self.tokens.get(self.offset);
 
         match token {
@@ -70,22 +71,8 @@ impl Parser {
 
                 self.offset += 1;
                 let s = token.value[1..token.value.len() - 1].to_owned();
-                Ok(Json::String(s))
+                Ok(s)
             }
-        }
-    }
-
-    fn parse_string_key(&mut self) -> Result<String, ParseError> {
-        let json = self.parse_string()?;
-        match json {
-            Json::String(s) => Ok(s),
-            _ => Err(ParseError::new(
-                self.offset - 1,
-                format!(
-                    "Cannot use `{}` as object key",
-                    self.tokens[self.offset - 1].value
-                ),
-            )),
         }
     }
 
@@ -134,7 +121,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in array", token).to_owned(),
+                            format!("Unexpected token `{}` in array", token.value).to_owned(),
                         ))
                     }
                 },
@@ -190,7 +177,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in object", token).to_owned(),
+                            format!("Unexpected token `{}` in object", token.value).to_owned(),
                         ))
                     }
                 },
@@ -214,7 +201,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in object", token).to_owned(),
+                            format!("Unexpected token `{}` in object", token.value).to_owned(),
                         ))
                     }
                 },
@@ -280,6 +267,8 @@ mod tests {
     use crate::parser::{parse, Json, ParseError};
     use crate::tokenizer::tokenize;
 
+    use super::Parser;
+
     #[test]
     fn test_parse() {
         let cases: Vec<(&str, Result<Json, ParseError>)> = vec![
@@ -324,6 +313,118 @@ mod tests {
                     ("bar".to_owned(), Json::Array(vec![Json::Integer(69)])),
                 ]))),
             ),
+            (
+                "truefalse",
+                Err(ParseError {
+                    offset: 1,
+                    message: "Unexpected extra input found".to_owned(),
+                }),
+            ),
+            (
+                "{",
+                Err(ParseError {
+                    offset: 1,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "{\"some key\"",
+                Err(ParseError {
+                    offset: 2,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "{\"some key\":",
+                Err(ParseError {
+                    offset: 3,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "{\"some key\":\"some value\"",
+                Err(ParseError {
+                    offset: 4,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "{\"some key\":\"some value\" 3",
+                Err(ParseError {
+                    offset: 4,
+                    message: "Unexpected token `3` in object".to_owned(),
+                }),
+            ),
+            (
+                "{3:\"some value\"",
+                Err(ParseError {
+                    offset: 1,
+                    message: "Cannot parse `3` as string".to_owned(),
+                }),
+            ),
+            (
+                "{\"some key\" 3",
+                Err(ParseError {
+                    offset: 2,
+                    message: "Unexpected token `3` in object".to_owned(),
+                }),
+            ),
+            (
+                "{3",
+                Err(ParseError {
+                    offset: 1,
+                    message: "Cannot parse `3` as string".to_owned(),
+                }),
+            ),
+            (
+                "[",
+                Err(ParseError {
+                    offset: 1,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "[3",
+                Err(ParseError {
+                    offset: 2,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "[3,",
+                Err(ParseError {
+                    offset: 3,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "[3 5",
+                Err(ParseError {
+                    offset: 2,
+                    message: "Unexpected token `5` in array".to_owned(),
+                }),
+            ),
+            (
+                "",
+                Err(ParseError {
+                    offset: 0,
+                    message: "Unexpected end of input".to_owned(),
+                }),
+            ),
+            (
+                "2222222222222222222222222",
+                Err(ParseError {
+                    offset: 0,
+                    message: "Cannot parse `2222222222222222222222222` as integer".to_owned(),
+                }),
+            ),
+            (
+                "}",
+                Err(ParseError {
+                    offset: 0,
+                    message: "Found unexpected token `}`".to_owned(),
+                }),
+            ),
         ];
 
         for case in cases.iter() {
@@ -331,5 +432,17 @@ mod tests {
             let json = parse(tokens);
             assert_eq!(json, case.1);
         }
+    }
+
+    #[test]
+    fn test_parse_string_key_no_input() {
+        let mut parser = Parser::new(vec![], 0);
+
+        let parse_error = parser.parse_string_key().unwrap_err();
+
+        assert_eq!(
+            parse_error,
+            ParseError::new(0, "Unexpected end of input".to_owned())
+        );
     }
 }

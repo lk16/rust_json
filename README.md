@@ -20,8 +20,6 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 * Support for string escape sequences
 
 ### Features to be added soon
-* Test Coverage
-* Adding missing tests
 * CI
 
 ### Disclaimer
@@ -63,3 +61,44 @@ watch -cn 1 -- cargo --color=always test -q
 ```
 
 [Split Rust code into multiple files](https://rust-classes.com/chapter_4_3.html#chapter-43---organizing-code)
+
+Get test coverage:
+```sh
+# Install grcov and llvm-tools
+cargo install grcov
+rustup component add llvm-tools-preview
+
+# Run tests
+CARGO_INCREMENTAL=0 \
+RUSTFLAGS='-C instrument-coverage' \
+LLVM_PROFILE_FILE='cargo-test-%p-%m.profraw' \
+cargo test
+
+# Generate HTML coverage report
+grcov . \
+--binary-path ./target/debug/deps/ \
+-s . \
+-t html \
+--branch \
+--ignore-not-existing \
+--ignore '../*' \
+--ignore "/*" \
+--ignore "src/main.rs" \
+-o cov_html
+
+# Show report in browser
+firefox cov_html/index.html
+
+# Print Markdown coverage report to stdout
+grcov . \
+--binary-path ./target/debug/deps/ \
+-s . \
+-t markdown \
+--branch \
+--ignore-not-existing \
+--ignore '../*' \
+--ignore "/*" \
+--ignore "src/main.rs" \
+-o /dev/stdout
+```
+
