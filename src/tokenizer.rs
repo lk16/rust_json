@@ -81,15 +81,13 @@ impl Tokenizer {
                 Some(c) => {
                     if c.is_ascii_digit() {
                         self.tokenize_integer()
+                    } else if c.is_ascii_whitespace() {
+                        self.tokenize_whitespace()
                     } else {
-                        if c.is_ascii_whitespace() {
-                            self.tokenize_whitespace()
-                        } else {
-                            Err(TokenizeError::new(
-                                self.offset,
-                                "Unhandled character".to_owned(),
-                            ))
-                        }
+                        Err(TokenizeError::new(
+                            self.offset,
+                            "Unhandled character".to_owned(),
+                        ))
                     }
                 }
             };

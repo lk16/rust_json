@@ -121,7 +121,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in array", token.value).to_owned(),
+                            format!("Unexpected token `{}` in array", token.value),
                         ))
                     }
                 },
@@ -177,7 +177,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in object", token.value).to_owned(),
+                            format!("Unexpected token `{}` in object", token.value),
                         ))
                     }
                 },
@@ -201,7 +201,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::new(
                             self.offset,
-                            format!("Unexpected token `{}` in object", token.value).to_owned(),
+                            format!("Unexpected token `{}` in object", token.value),
                         ))
                     }
                 },
@@ -215,12 +215,10 @@ impl Parser {
         let token = &self.tokens.get(self.offset);
 
         match token {
-            None => {
-                return Err(ParseError::new(
-                    self.offset,
-                    "Unexpected end of input".to_owned(),
-                ))
-            }
+            None => Err(ParseError::new(
+                self.offset,
+                "Unexpected end of input".to_owned(),
+            )),
             Some(token) => match token.type_ {
                 TokenType::Null => {
                     self.offset += 1;
