@@ -17,6 +17,7 @@ enum TokenType {
     ObjectStart,
     String,
     True,
+    Whitespace,
 }
 
 struct TokenizeError {
@@ -81,7 +82,18 @@ impl<'a> Tokenizer<'a> {
                 Some('f') => self.tokenize_literal("false", TokenType::False),
                 Some('n') => self.tokenize_literal("null", TokenType::Null),
                 Some('t') => self.tokenize_literal("true", TokenType::True),
-                Some(_) => todo!(),
+                Some('"') => self.tokenize_string(),
+                Some(c) => {
+                    if c.is_ascii_digit() {
+                        self.tokenize_integer()
+                    } else {
+                        if c.is_ascii_whitespace() {
+                            self.tokenize_whitespace()
+                        } else {
+                            Err(TokenizeError::new(self.offset, "Unhandled character"))
+                        }
+                    }
+                }
             };
 
             match token_result {
@@ -108,6 +120,62 @@ impl<'a> Tokenizer<'a> {
         // TODO make error message better
         Err(TokenizeError::new(self.offset, "expected literal"))
     }
+
+    fn tokenize_integer(&self) -> Result<Token<'a>, TokenizeError> {
+        let mut int_end_offset = self.offset;
+        let chars = self.input.chars().skip(self.offset);
+
+        for c in chars {
+            if c.is_ascii_digit() {
+                int_end_offset += 1;
+            } else {
+                break;
+            }
+        }
+
+        let token = Token::new(TokenType::Integer, &self.input[self.offset..int_end_offset]);
+        Ok(token)
+    }
+
+    fn tokenize_string(&self) -> Result<Token<'a>, TokenizeError> {
+        let quote_distance = self
+            .input
+            .chars()
+            .skip(self.offset + 1)
+            .position(|x| x == '"');
+
+        match quote_distance {
+            None => Err(TokenizeError::new(
+                self.offset,
+                "No string-terminating quote found",
+            )),
+            Some(quote_distance) => {
+                let str_end_offset = self.offset + quote_distance + 2;
+                let value = &self.input[self.offset..str_end_offset];
+                let token = Token::new(TokenType::String, value);
+                Ok(token)
+            }
+        }
+    }
+
+    fn tokenize_whitespace(&self) -> Result<Token<'a>, TokenizeError> {
+        let mut ws_end_offset = self.offset;
+        let chars = self.input.chars().skip(self.offset);
+
+        for c in chars {
+            if c.is_ascii_whitespace() {
+                ws_end_offset += 1;
+            } else {
+                break;
+            }
+        }
+
+        let token = Token::new(
+            TokenType::Whitespace,
+            &self.input[self.offset..ws_end_offset],
+        );
+        Ok(token)
+    }
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
@@ -115,7 +183,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
 }
 
 fn main() {
-    let tokenized = tokenize("null,,:[]{}falsetruefalsefalse");
+    let tokenized = tokenize("\"foo\" 123 , [] {} \"hello world\" false null truetrue");
 
     match tokenized {
         Ok(tokens) => {
