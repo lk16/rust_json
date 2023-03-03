@@ -100,3 +100,7 @@ grcov . \
 -o /dev/stdout
 ```
 
+```sh
+# Run linter
+cargo clippy -- -D warnings
+```
