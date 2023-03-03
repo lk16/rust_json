@@ -19,9 +19,6 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 * Support for floats
 * Support for string escape sequences
 
-### Features to be added soon
-* CI
-
 ### Disclaimer
 
 This package was created to remember how rust packaging works.
@@ -54,7 +51,7 @@ cargo build
 
 ```sh
 # Watch rust compiler output while editing
-watch -cn 1 -- cargo --color=always run
+watch -cn 1 -- cargo --color=always run -q
 
 # Watch rust test output while editing
 watch -cn 1 -- cargo --color=always test -q
