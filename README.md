@@ -18,7 +18,6 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 ### Missing features
 * Support for floats
 * Support for string escape sequences
-* Handling errors in parser
 
 ### Disclaimer
 
