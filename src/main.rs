@@ -1,7 +1,9 @@
 // TODO remove when done
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unreachable_code)]
 
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
@@ -184,6 +186,142 @@ fn tokenize(input: &str) -> Result<Vec<Token>, TokenizeError> {
     Tokenizer::new(input).tokenize()
 }
 
+#[derive(Debug, PartialEq)]
+enum Json {
+    Null,
+    Boolean(bool),
+    Integer(i32),
+    String(String),
+    Array(Vec<Json>),
+    Object(HashMap<String, Json>),
+}
+
+struct Parser<'a> {
+    tokens: Vec<Token<'a>>,
+    offset: usize,
+}
+
+impl<'a> Parser<'a> {
+    fn new(tokens: Vec<Token<'a>>, offset: usize) -> Self {
+        Self { tokens, offset }
+    }
+
+    fn parse(&mut self) -> Json {
+        self.tokens.retain(|x| x.type_ != TokenType::Whitespace);
+        let parsed = self._parse();
+
+        if self.offset != self.tokens.len() {
+            todo!()
+        }
+
+        parsed
+    }
+
+    fn parse_string(&mut self) -> Json {
+        todo!();
+
+        let token = &self.tokens.get(self.offset);
+
+        match token {
+            None => todo!(),
+            Some(token) => {
+                let mut chars = token.value.chars();
+                chars.next();
+                chars.next_back();
+                let s = chars.as_str().to_owned();
+
+                self.offset += 1;
+                Json::String(s)
+            }
+        }
+    }
+
+    fn parse_array(&mut self) -> Json {
+        let mut array: Vec<Json> = vec![];
+
+        // Consume `[` chracter
+        self.offset += 1;
+
+        // [ ]
+        // [ json ]
+        // [ json , json ]
+
+        let token = &self.tokens.get(self.offset);
+        match token {
+            None => todo!(),
+            Some(token) => {
+                if token.type_ == TokenType::ArrayEnd {
+                    // Found empty array
+                    self.offset += 1;
+                    return Json::Array(array);
+                }
+            }
+        }
+
+        loop {
+            let item = self._parse();
+            array.push(item);
+
+            let token = &self.tokens.get(self.offset);
+
+            match token {
+                None => todo!(),
+                Some(token) => match token.type_ {
+                    TokenType::Comma => self.offset += 1,
+                    TokenType::ArrayEnd => {
+                        self.offset += 1;
+                        break;
+                    }
+                    _ => todo!(),
+                },
+            }
+        }
+
+        Json::Array(array)
+    }
+
+    fn parse_object(&self) -> Json {
+        todo!()
+    }
+
+    fn _parse(&mut self) -> Json {
+        let token = &self.tokens.get(self.offset);
+
+        match token {
+            None => todo!(),
+            Some(token) => match token.type_ {
+                TokenType::Null => {
+                    self.offset += 1;
+                    Json::Null
+                }
+                TokenType::True => {
+                    self.offset += 1;
+                    Json::Boolean(true)
+                }
+                TokenType::False => {
+                    self.offset += 1;
+                    Json::Boolean(false)
+                }
+                TokenType::Integer => match token.value.parse::<i32>() {
+                    Ok(i) => {
+                        self.offset += 1;
+                        Json::Integer(i)
+                    }
+                    Err(_) => todo!(),
+                },
+                TokenType::String => self.parse_string(),
+                TokenType::ArrayStart => self.parse_array(),
+                TokenType::ObjectStart => self.parse_object(),
+                _ => todo!(),
+            },
+        }
+    }
+}
+
+fn parse(tokens: Vec<Token>) -> Json {
+    Parser::new(tokens, 0).parse()
+}
+
 fn main() {
     let tokenized = tokenize("\"foo\" 123 , [] {} \"hello world\" false null truetrue");
 
@@ -200,7 +338,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use crate::parse;
     use crate::tokenize;
+    use crate::Json;
     use crate::Token;
     use crate::TokenType;
     use crate::TokenizeError;
@@ -227,6 +367,29 @@ mod tests {
                 Ok(vec![Token::new(TokenType::String, "\"Hello world\"")]),
             ),
             (
+                "123 {} [] , : \"a b\" null\nfalsetrue",
+                Ok(vec![
+                    Token::new(TokenType::Integer, "123"),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::ObjectStart, "{"),
+                    Token::new(TokenType::ObjectEnd, "}"),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::ArrayStart, "["),
+                    Token::new(TokenType::ArrayEnd, "]"),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::Comma, ","),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::Colon, ":"),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::String, "\"a b\""),
+                    Token::new(TokenType::Whitespace, " "),
+                    Token::new(TokenType::Null, "null"),
+                    Token::new(TokenType::Whitespace, "\n"),
+                    Token::new(TokenType::False, "false"),
+                    Token::new(TokenType::True, "true"),
+                ]),
+            ),
+            (
                 "broken",
                 Err(TokenizeError {
                     offset: 0,
@@ -244,6 +407,37 @@ mod tests {
 
         for case in cases.iter() {
             assert_eq!(tokenize(case.0), case.1)
+        }
+    }
+
+    #[test]
+    fn test_parse() {
+        let cases: Vec<(&str, Json)> = vec![
+            ("null", Json::Null),
+            ("true", Json::Boolean(true)),
+            ("false", Json::Boolean(false)),
+            ("[]", Json::Array(vec![])),
+            ("[false]", Json::Array(vec![Json::Boolean(false)])),
+            ("[null]", Json::Array(vec![Json::Null])),
+            (
+                "[1,2,3,false]",
+                Json::Array(vec![
+                    Json::Integer(1),
+                    Json::Integer(2),
+                    Json::Integer(3),
+                    Json::Boolean(false),
+                ]),
+            ),
+            (
+                "[[1],null]",
+                Json::Array(vec![Json::Array(vec![Json::Integer(1)]), Json::Null]),
+            ),
+        ];
+
+        for case in cases.iter() {
+            let tokens = tokenize(case.0).unwrap();
+            let json = parse(tokens);
+            assert_eq!(json, case.1);
         }
     }
 }

@@ -27,9 +27,10 @@ cargo build
 
 ```rs
 // Tell compiler to not complain about
-// unused code or variables in this crate
+// dead/unreachable code or unused variables in this crate
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unreachable_code)]
 ```
 
 ```sh
