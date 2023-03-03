@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum TokenType {
     ArrayEnd,
     ArrayStart,
@@ -20,6 +20,7 @@ enum TokenType {
     Whitespace,
 }
 
+#[derive(Debug, PartialEq)]
 struct TokenizeError {
     offset: usize,
     message: &'static str,
@@ -31,6 +32,7 @@ impl TokenizeError {
     }
 }
 
+#[derive(Debug, PartialEq)]
 struct Token<'a> {
     type_: TokenType,
     value: &'a str,
@@ -193,5 +195,55 @@ fn main() {
             }
         }
         Err(error) => println!("Parse Error at offset {}: {}", error.offset, error.message),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tokenize;
+    use crate::Token;
+    use crate::TokenType;
+    use crate::TokenizeError;
+
+    #[test]
+    fn test_tokenize() {
+        let cases: Vec<(&str, Result<Vec<Token>, TokenizeError>)> = vec![
+            ("null", Ok(vec![Token::new(TokenType::Null, "null")])),
+            ("true", Ok(vec![Token::new(TokenType::True, "true")])),
+            ("false", Ok(vec![Token::new(TokenType::False, "false")])),
+            (":", Ok(vec![Token::new(TokenType::Colon, ":")])),
+            ("[", Ok(vec![Token::new(TokenType::ArrayStart, "[")])),
+            ("]", Ok(vec![Token::new(TokenType::ArrayEnd, "]")])),
+            ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{")])),
+            ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}")])),
+            (",", Ok(vec![Token::new(TokenType::Comma, ",")])),
+            ("1234", Ok(vec![Token::new(TokenType::Integer, "1234")])),
+            (
+                " \n\r ",
+                Ok(vec![Token::new(TokenType::Whitespace, " \n\r ")]),
+            ),
+            (
+                "\"Hello world\"",
+                Ok(vec![Token::new(TokenType::String, "\"Hello world\"")]),
+            ),
+            (
+                "broken",
+                Err(TokenizeError {
+                    offset: 0,
+                    message: "Unhandled character",
+                }),
+            ),
+            (
+                "\"no closing quote",
+                Err(TokenizeError {
+                    offset: 0,
+                    message: "No string-terminating quote found",
+                }),
+            ),
+        ];
+
+        for case in cases.iter() {
+            assert_eq!(tokenize(case.0), case.1)
+        }
     }
 }

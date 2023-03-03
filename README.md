@@ -33,6 +33,9 @@ cargo build
 ```
 
 ```sh
-# Watch rust compiler output in separate shell while editing
+# Watch rust compiler output while editing
 watch -cn 1 -- cargo --color=always run
+
+# Watch rust test output while editing
+watch -cn 1 -- cargo --color=always test -q
 ```
