@@ -1,7 +1,7 @@
 
-# Rust playground
+# Rust JSON
 
-Barebone JSON parser
+Barebone JSON parser in Rust
 
 ### Example Usage
 
@@ -18,6 +18,7 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 ### Missing features
 * Support for floats
 * Support for string escape sequences
+* Human readable tokenize- and parse- errors
 
 ### Disclaimer
 
