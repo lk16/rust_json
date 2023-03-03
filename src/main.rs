@@ -35,20 +35,23 @@ impl TokenizeError {
 }
 
 #[derive(Debug, PartialEq)]
-struct Token<'a> {
+struct Token {
     type_: TokenType,
-    value: &'a str,
+    value: String,
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "type={:?} value={}", self.type_, self.value)
     }
 }
 
-impl<'a> Token<'a> {
-    fn new(type_: TokenType, value: &'a str) -> Self {
-        Self { type_, value }
+impl Token {
+    fn new(type_: TokenType, value: &str) -> Self {
+        Self {
+            type_,
+            value: value.to_owned(),
+        }
     }
 
     fn len(&self) -> usize {
@@ -56,22 +59,22 @@ impl<'a> Token<'a> {
     }
 }
 
-struct Tokenizer<'a> {
-    input: &'a str,
+struct Tokenizer {
+    input: String,
     offset: usize,
-    tokens: Vec<Token<'a>>,
+    tokens: Vec<Token>,
 }
 
-impl<'a> Tokenizer<'a> {
-    fn new(input: &'a str) -> Self {
+impl Tokenizer {
+    fn new(input: &str) -> Self {
         Self {
-            input,
+            input: input.to_owned(),
             offset: 0,
             tokens: vec![],
         }
     }
 
-    fn tokenize(mut self) -> Result<Vec<Token<'a>>, TokenizeError> {
+    fn tokenize(mut self) -> Result<Vec<Token>, TokenizeError> {
         loop {
             let c = self.input.chars().nth(self.offset);
 
@@ -116,7 +119,7 @@ impl<'a> Tokenizer<'a> {
         &self,
         literal: &'static str,
         type_: TokenType,
-    ) -> Result<Token<'a>, TokenizeError> {
+    ) -> Result<Token, TokenizeError> {
         if self.input.split_at(self.offset).1.starts_with(literal) {
             let token = Token::new(type_, literal);
             return Ok(token);
@@ -125,7 +128,7 @@ impl<'a> Tokenizer<'a> {
         Err(TokenizeError::new(self.offset, "expected literal"))
     }
 
-    fn tokenize_integer(&self) -> Result<Token<'a>, TokenizeError> {
+    fn tokenize_integer(&self) -> Result<Token, TokenizeError> {
         let mut int_end_offset = self.offset;
         let chars = self.input.chars().skip(self.offset);
 
@@ -141,7 +144,7 @@ impl<'a> Tokenizer<'a> {
         Ok(token)
     }
 
-    fn tokenize_string(&self) -> Result<Token<'a>, TokenizeError> {
+    fn tokenize_string(&self) -> Result<Token, TokenizeError> {
         let quote_distance = self
             .input
             .chars()
@@ -162,7 +165,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn tokenize_whitespace(&self) -> Result<Token<'a>, TokenizeError> {
+    fn tokenize_whitespace(&self) -> Result<Token, TokenizeError> {
         let mut ws_end_offset = self.offset;
         let chars = self.input.chars().skip(self.offset);
 
@@ -196,13 +199,13 @@ enum Json {
     Object(HashMap<String, Json>),
 }
 
-struct Parser<'a> {
-    tokens: Vec<Token<'a>>,
+struct Parser {
+    tokens: Vec<Token>,
     offset: usize,
 }
 
-impl<'a> Parser<'a> {
-    fn new(tokens: Vec<Token<'a>>, offset: usize) -> Self {
+impl Parser {
+    fn new(tokens: Vec<Token>, offset: usize) -> Self {
         Self { tokens, offset }
     }
 
@@ -218,20 +221,23 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_string(&mut self) -> Json {
-        todo!();
+        let s = self.parse_object_key();
+        Json::String(s)
+    }
 
+    fn parse_object_key(&mut self) -> String {
         let token = &self.tokens.get(self.offset);
 
         match token {
             None => todo!(),
             Some(token) => {
-                let mut chars = token.value.chars();
-                chars.next();
-                chars.next_back();
-                let s = chars.as_str().to_owned();
+                if token.type_ != TokenType::String {
+                    todo!()
+                }
 
                 self.offset += 1;
-                Json::String(s)
+                let s = token.value[1..token.value.len() - 1].to_owned();
+                s
             }
         }
     }
@@ -241,10 +247,6 @@ impl<'a> Parser<'a> {
 
         // Consume `[` chracter
         self.offset += 1;
-
-        // [ ]
-        // [ json ]
-        // [ json , json ]
 
         let token = &self.tokens.get(self.offset);
         match token {
@@ -280,8 +282,59 @@ impl<'a> Parser<'a> {
         Json::Array(array)
     }
 
-    fn parse_object(&self) -> Json {
-        todo!()
+    fn parse_object(&mut self) -> Json {
+        let mut object: HashMap<String, Json> = HashMap::new();
+
+        // Consume `{` chracter
+        self.offset += 1;
+
+        let token = &self.tokens.get(self.offset);
+
+        match token {
+            None => todo!(),
+            Some(token) => {
+                if token.type_ == TokenType::ObjectEnd {
+                    // Found empty object
+                    self.offset += 1;
+                    return Json::Object(object);
+                }
+            }
+        }
+
+        loop {
+            let key = self.parse_object_key();
+
+            let token = &self.tokens.get(self.offset);
+
+            match token {
+                None => todo!(),
+                Some(token) => match token.type_ {
+                    TokenType::Colon => {
+                        self.offset += 1;
+
+                        let value = self._parse();
+                        object.insert(key, value);
+                    }
+                    _ => todo!(),
+                },
+            }
+
+            let token = &self.tokens.get(self.offset);
+
+            match token {
+                None => todo!(),
+                Some(token) => match token.type_ {
+                    TokenType::Comma => self.offset += 1,
+                    TokenType::ObjectEnd => {
+                        self.offset += 1;
+                        break;
+                    }
+                    _ => todo!(),
+                },
+            }
+        }
+
+        Json::Object(object)
     }
 
     fn _parse(&mut self) -> Json {
@@ -338,6 +391,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::parse;
     use crate::tokenize;
     use crate::Json;
@@ -417,6 +472,7 @@ mod tests {
             ("true", Json::Boolean(true)),
             ("false", Json::Boolean(false)),
             ("[]", Json::Array(vec![])),
+            ("\"hello world\"", Json::String("hello world".to_owned())),
             ("[false]", Json::Array(vec![Json::Boolean(false)])),
             ("[null]", Json::Array(vec![Json::Null])),
             (
@@ -431,6 +487,11 @@ mod tests {
             (
                 "[[1],null]",
                 Json::Array(vec![Json::Array(vec![Json::Integer(1)]), Json::Null]),
+            ),
+            ("{}", Json::Object(HashMap::new())),
+            (
+                "{\"foo\": 1337}",
+                Json::Object(HashMap::from([("foo".to_owned(), Json::Integer(1337))])),
             ),
         ];
 
