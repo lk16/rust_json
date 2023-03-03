@@ -19,6 +19,12 @@ cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
 * Support for floats
 * Support for string escape sequences
 
+### Features to be added soon
+* Moving tokenizer and parser to separate file
+* Test Coverage
+* Adding missing tests
+* CI
+
 ### Disclaimer
 
 This package was created to remember how rust packaging works.
