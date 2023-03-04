@@ -1,3 +1,5 @@
+use regex::Regex;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     ArrayEnd,
@@ -5,7 +7,7 @@ pub enum TokenType {
     Colon,
     Comma,
     False,
-    Integer,
+    Number,
     Null,
     ObjectEnd,
     ObjectStart,
@@ -78,9 +80,10 @@ impl Tokenizer {
                 Some('n') => self.tokenize_literal("null", TokenType::Null),
                 Some('t') => self.tokenize_literal("true", TokenType::True),
                 Some('"') => self.tokenize_string(),
+                Some('-') => self.tokenize_number(),
                 Some(c) => {
                     if c.is_ascii_digit() {
-                        self.tokenize_integer()
+                        self.tokenize_number()
                     } else if c.is_ascii_whitespace() {
                         self.tokenize_whitespace()
                     } else {
@@ -119,24 +122,21 @@ impl Tokenizer {
         ))
     }
 
-    fn tokenize_integer(&self) -> Result<Token, TokenizeError> {
-        let mut int_end_offset = self.offset;
-        let chars = self.input.chars().skip(self.offset);
+    fn tokenize_number(&self) -> Result<Token, TokenizeError> {
+        let re = Regex::new(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?").unwrap();
 
-        for c in chars {
-            if c.is_ascii_digit() {
-                int_end_offset += 1;
-            } else {
-                break;
+        let found = re.find_at(&self.input, self.offset);
+
+        match found {
+            None => Err(TokenizeError::new(
+                self.offset,
+                "Cannot parse number".to_owned(),
+            )),
+            Some(found) => {
+                let value = found.as_str();
+                Ok(Token::new(TokenType::Number, value, self.offset))
             }
         }
-
-        let token = Token::new(
-            TokenType::Integer,
-            &self.input[self.offset..int_end_offset],
-            self.offset,
-        );
-        Ok(token)
     }
 
     fn tokenize_string(&self) -> Result<Token, TokenizeError> {
@@ -215,7 +215,10 @@ mod tests {
         test_tokenize_object_start:    ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{", 0)])),
         test_tokenize_object_end:    ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}", 0)])),
         test_tokenize_comma:    (",", Ok(vec![Token::new(TokenType::Comma, ",", 0)])),
-        test_tokenize_integer:    ("1234", Ok(vec![Token::new(TokenType::Integer, "1234", 0)])),
+        test_tokenize_number:    ("1234", Ok(vec![Token::new(TokenType::Number, "1234", 0)])),
+        test_tokenize_number_negative:    ("-1234", Ok(vec![Token::new(TokenType::Number, "-1234", 0)])),
+        test_tokenize_number_decimal:    ("3.1415926", Ok(vec![Token::new(TokenType::Number, "3.1415926", 0)])),
+        test_tokenize_number_exponent:    ("69234.2423432E78", Ok(vec![Token::new(TokenType::Number, "69234.2423432E78", 0)])),
         test_tokenize_whitespace: (
                 " \n\r ",
                 Ok(vec![Token::new(TokenType::Whitespace, " \n\r ", 0)]),
@@ -227,7 +230,7 @@ mod tests {
         test_tokenize_many: (
                 "123 {} [] , : \"a b\" null\nfalsetrue",
                 Ok(vec![
-                    Token::new(TokenType::Integer, "123", 0),
+                    Token::new(TokenType::Number, "123", 0),
                     Token::new(TokenType::Whitespace, " ", 3),
                     Token::new(TokenType::ObjectStart, "{", 4),
                     Token::new(TokenType::ObjectEnd, "}", 5),

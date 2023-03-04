@@ -6,7 +6,7 @@ use crate::tokenizer::{Token, TokenType};
 pub enum Json {
     Null,
     Boolean(bool),
-    Integer(i32),
+    Number(f64),
     String(String),
     Array(Vec<Json>),
     Object(HashMap<String, Json>),
@@ -211,6 +211,28 @@ impl Parser {
         Ok(Json::Object(object))
     }
 
+    fn parse_number(&mut self) -> Result<Json, ParseError> {
+        let token = &self.tokens.get(self.offset);
+
+        match token {
+            None => Err(ParseError::new(
+                self.offset,
+                "Unexpected end of input".to_owned(),
+            )),
+            Some(token) => {
+                let parsed = token.value.parse::<f64>();
+
+                match parsed {
+                    Err(_) => Err(ParseError::new(
+                        self.offset,
+                        format!("Cannot parse `{}` as number", token.value),
+                    )),
+                    Ok(float) => Ok(Json::Number(float)),
+                }
+            }
+        }
+    }
+
     fn _parse(&mut self) -> Result<Json, ParseError> {
         let token = &self.tokens.get(self.offset);
 
@@ -232,16 +254,7 @@ impl Parser {
                     self.offset += 1;
                     Ok(Json::Boolean(false))
                 }
-                TokenType::Integer => match token.value.parse::<i32>() {
-                    Ok(i) => {
-                        self.offset += 1;
-                        Ok(Json::Integer(i))
-                    }
-                    Err(_) => Err(ParseError::new(
-                        self.offset,
-                        format!("Cannot parse `{}` as integer", token.value),
-                    )),
-                },
+                TokenType::Number => self.parse_number(),
                 TokenType::String => self.parse_string(),
                 TokenType::ArrayStart => self.parse_array(),
                 TokenType::ObjectStart => self.parse_object(),
@@ -294,16 +307,16 @@ mod tests {
         test_parse_list_with_mixed:    (
                 "[1,2,3,false]",
                 Ok(Json::Array(vec![
-                    Json::Integer(1),
-                    Json::Integer(2),
-                    Json::Integer(3),
+                    Json::Number(1f64),
+                    Json::Number(2f64),
+                    Json::Number(3f64),
                     Json::Boolean(false),
                 ])),
             ),
         test_parse_list_nested: (
                 "[[1],null]",
                 Ok(Json::Array(vec![
-                    Json::Array(vec![Json::Integer(1)]),
+                    Json::Array(vec![Json::Number(1f64)]),
                     Json::Null,
                 ])),
             ),
@@ -312,14 +325,14 @@ mod tests {
                 "{\"foo\": 1337}",
                 Ok(Json::Object(HashMap::from([(
                     "foo".to_owned(),
-                    Json::Integer(1337),
+                    Json::Number(1337f64),
                 )]))),
             ),
         test_parse_dict_two_items: (
                 "{\"foo\": 1337, \"bar\": [69]}",
                 Ok(Json::Object(HashMap::from([
-                    ("foo".to_owned(), Json::Integer(1337)),
-                    ("bar".to_owned(), Json::Array(vec![Json::Integer(69)])),
+                    ("foo".to_owned(), Json::Number(1337f64)),
+                    ("bar".to_owned(), Json::Array(vec![Json::Number(69f64)])),
                 ]))),
             ),
         test_parse_extra_input: (
@@ -420,11 +433,11 @@ mod tests {
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            test_parse_int_fail: (
+            test_parse_number_fail: (
                 "2222222222222222222222222",
                 Err(ParseError {
                     offset: 0,
-                    message: "Cannot parse `2222222222222222222222222` as integer".to_owned(),
+                    message: "Cannot parse `2222222222222222222222222` as number".to_owned(),
                 }),
             ),
             test_parse_stray_token: (
