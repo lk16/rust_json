@@ -6,8 +6,8 @@ Barebone JSON parser in Rust
 ### Example Usage
 
 ```sh
-cargo run -q '{"hello": [123, false, true, {"foo": null}, 3]}'
-# outputs: Object({"hello": Array([Integer(123), Boolean(false), Boolean(true), Object({"foo": Null}), Integer(3)])})
+cargo run -q '{"hello": [123, false, true, {"foo": null}, 3.0]}'
+# outputs: Object({"hello": Array([Number(123.0), Boolean(false), Boolean(true), Object({"foo": Null}), Number(3.0)])})
 ```
 
 ### Features
