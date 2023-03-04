@@ -227,7 +227,10 @@ impl Parser {
                         self.offset,
                         format!("Cannot parse `{}` as number", token.value),
                     )),
-                    Ok(float) => Ok(Json::Number(float)),
+                    Ok(float) => {
+                        self.offset += 1;
+                        Ok(Json::Number(float))
+                    }
                 }
             }
         }
@@ -275,7 +278,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Json, ParseError> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::parser::{parse, Json, ParseError};
+    use crate::parser::{parse, Json, ParseError, Parser};
     use crate::tokenizer::tokenize;
 
     macro_rules! parser_tests {
@@ -329,9 +332,9 @@ mod tests {
                 )]))),
             ),
         test_parse_dict_two_items: (
-                "{\"foo\": 1337, \"bar\": [69]}",
+                "{\"foo\": 13.37, \"bar\": [69]}",
                 Ok(Json::Object(HashMap::from([
-                    ("foo".to_owned(), Json::Number(1337f64)),
+                    ("foo".to_owned(), Json::Number(13.37f64)),
                     ("bar".to_owned(), Json::Array(vec![Json::Number(69f64)])),
                 ]))),
             ),
@@ -433,13 +436,7 @@ mod tests {
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            test_parse_number_fail: (
-                "2222222222222222222222222",
-                Err(ParseError {
-                    offset: 0,
-                    message: "Cannot parse `2222222222222222222222222` as number".to_owned(),
-                }),
-            ),
+
             test_parse_stray_token: (
                 "}",
                 Err(ParseError {
@@ -447,5 +444,30 @@ mod tests {
                     message: "Found unexpected token `}`".to_owned(),
                 }),
             ),
+    }
+
+    macro_rules! float_parser_tests {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (input, expected) = $value;
+                let tokens = tokenize(input).unwrap();
+                let mut parser = Parser::new(tokens, 0);
+                let parsed = parser.parse_number();
+                assert_eq!(expected, parsed);
+
+            }
+        )*
+        }
+    }
+
+    float_parser_tests! {
+        test_parse_number: ("123", Ok(Json::Number(123f64))),
+        test_parse_number_negative: ("-123", Ok(Json::Number(-123f64))),
+        test_parse_number_decimal: ("123.456", Ok(Json::Number(123.456f64))),
+        test_parse_number_negative_decimal: ("-123.456", Ok(Json::Number(-123.456f64))),
+        test_parse_number_exponent: ("69234.2423432E78", Ok(Json::Number(69234.2423432E78f64))),
+
     }
 }
