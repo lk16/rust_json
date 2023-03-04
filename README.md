@@ -58,7 +58,6 @@ watch -cn 1 -- cargo --color=always run -q
 watch -cn 1 -- cargo --color=always test -q
 ```
 
-[Split Rust code into multiple files](https://rust-classes.com/chapter_4_3.html#chapter-43---organizing-code)
 
 Get test coverage:
 ```sh
@@ -104,3 +103,10 @@ grcov . \
 # Run linter
 cargo clippy -- -D warnings
 ```
+
+### Links
+
+- [Split Rust code into multiple files](https://rust-classes.com/chapter_4_3.html#chapter-43---organizing-code)
+- [Rust design patterns](https://rust-unofficial.github.io/patterns/intro.html)
+- [Rust API guidelines](https://rust-lang.github.io/api-guidelines/about.html)
+- [Links to a bunch of Rust resources](https://github.com/mre/idiomatic-rust)
