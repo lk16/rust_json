@@ -106,7 +106,11 @@ cargo clippy -- -D warnings
 
 ### Links
 
+Solving specific problems
 - [Split Rust code into multiple files](https://rust-classes.com/chapter_4_3.html#chapter-43---organizing-code)
+- [Use macros to emulate test parametrization](https://stackoverflow.com/a/34666891)
+
+Further reading
 - [Rust design patterns](https://rust-unofficial.github.io/patterns/intro.html)
 - [Rust API guidelines](https://rust-lang.github.io/api-guidelines/about.html)
 - [Links to a bunch of Rust resources](https://github.com/mre/idiomatic-rust)

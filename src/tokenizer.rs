@@ -192,28 +192,39 @@ mod tests {
     use crate::tokenizer::TokenType;
     use crate::tokenizer::TokenizeError;
 
-    #[test]
-    fn test_tokenize() {
-        let cases: Vec<(&str, Result<Vec<Token>, TokenizeError>)> = vec![
-            ("null", Ok(vec![Token::new(TokenType::Null, "null", 0)])),
-            ("true", Ok(vec![Token::new(TokenType::True, "true", 0)])),
-            ("false", Ok(vec![Token::new(TokenType::False, "false", 0)])),
-            (":", Ok(vec![Token::new(TokenType::Colon, ":", 0)])),
-            ("[", Ok(vec![Token::new(TokenType::ArrayStart, "[", 0)])),
-            ("]", Ok(vec![Token::new(TokenType::ArrayEnd, "]", 0)])),
-            ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{", 0)])),
-            ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}", 0)])),
-            (",", Ok(vec![Token::new(TokenType::Comma, ",", 0)])),
-            ("1234", Ok(vec![Token::new(TokenType::Integer, "1234", 0)])),
-            (
+    macro_rules! tokenizer_tests {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (input, expected) = $value;
+                assert_eq!(tokenize(input), expected)
+
+            }
+        )*
+        }
+    }
+
+    tokenizer_tests! {
+        test_tokenize_null:    ("null", Ok(vec![Token::new(TokenType::Null, "null", 0)])),
+        test_tokenize_true:    ("true", Ok(vec![Token::new(TokenType::True, "true", 0)])),
+        test_tokenize_false:    ("false", Ok(vec![Token::new(TokenType::False, "false", 0)])),
+        test_tokenize_colon:    (":", Ok(vec![Token::new(TokenType::Colon, ":", 0)])),
+        test_tokenize_array_start:    ("[", Ok(vec![Token::new(TokenType::ArrayStart, "[", 0)])),
+        test_tokenize_array_end:    ("]", Ok(vec![Token::new(TokenType::ArrayEnd, "]", 0)])),
+        test_tokenize_object_start:    ("{", Ok(vec![Token::new(TokenType::ObjectStart, "{", 0)])),
+        test_tokenize_object_end:    ("}", Ok(vec![Token::new(TokenType::ObjectEnd, "}", 0)])),
+        test_tokenize_comma:    (",", Ok(vec![Token::new(TokenType::Comma, ",", 0)])),
+        test_tokenize_integer:    ("1234", Ok(vec![Token::new(TokenType::Integer, "1234", 0)])),
+        test_tokenize_whitespace: (
                 " \n\r ",
                 Ok(vec![Token::new(TokenType::Whitespace, " \n\r ", 0)]),
             ),
-            (
+        test_tokenize_string: (
                 "\"Hello world\"",
                 Ok(vec![Token::new(TokenType::String, "\"Hello world\"", 0)]),
             ),
-            (
+        test_tokenize_many: (
                 "123 {} [] , : \"a b\" null\nfalsetrue",
                 Ok(vec![
                     Token::new(TokenType::Integer, "123", 0),
@@ -236,28 +247,32 @@ mod tests {
                     Token::new(TokenType::True, "true", 30),
                 ]),
             ),
-            (
+        test_tokenize_broken: (
                 "broken",
                 Err(TokenizeError {
                     offset: 0,
                     message: "Unhandled character".to_owned(),
                 }),
             ),
-            (
+        test_tokenize_unclosed_string: (
                 "\"no closing quote",
                 Err(TokenizeError {
                     offset: 0,
                     message: "No string-terminating quote found".to_owned(),
                 }),
             ),
-            (
+        test_tokenize_broken_false: (
                 "foo",
                 Err(TokenizeError {
                     offset: 0,
                     message: "Expected literal `false`".to_owned(),
                 }),
             ),
-        ];
+    }
+
+    #[test]
+    fn test_tokenize() {
+        let cases: Vec<(&str, Result<Vec<Token>, TokenizeError>)> = vec![];
 
         for case in cases.iter() {
             assert_eq!(tokenize(case.0), case.1)

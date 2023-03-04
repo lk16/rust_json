@@ -265,22 +265,33 @@ mod tests {
     use crate::parser::{parse, Json, ParseError};
     use crate::tokenizer::tokenize;
 
-    use super::Parser;
+    macro_rules! parser_tests {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (input, expected) = $value;
+                let tokens = tokenize(input).unwrap();
+                let json = parse(tokens);
+                assert_eq!(json, expected);
 
-    #[test]
-    fn test_parse() {
-        let cases: Vec<(&str, Result<Json, ParseError>)> = vec![
-            ("null", Ok(Json::Null)),
-            ("true", Ok(Json::Boolean(true))),
-            ("false", Ok(Json::Boolean(false))),
-            ("[]", Ok(Json::Array(vec![]))),
-            (
+            }
+        )*
+        }
+    }
+
+    parser_tests! {
+        test_parse_null: ("null", Ok(Json::Null)),
+        test_parse_true: ("true", Ok(Json::Boolean(true))),
+        test_parse_false:    ("false", Ok(Json::Boolean(false))),
+        test_parse_empty_list: ("[]", Ok(Json::Array(vec![]))),
+        test_parse_string: (
                 "\"hello world\"",
                 Ok(Json::String("hello world".to_owned())),
             ),
-            ("[false]", Ok(Json::Array(vec![Json::Boolean(false)]))),
-            ("[null]", Ok(Json::Array(vec![Json::Null]))),
-            (
+        test_parse_list_with_bool:    ("[false]", Ok(Json::Array(vec![Json::Boolean(false)]))),
+        test_parse_list_with_null:    ("[null]", Ok(Json::Array(vec![Json::Null]))),
+        test_parse_list_with_mixed:    (
                 "[1,2,3,false]",
                 Ok(Json::Array(vec![
                     Json::Integer(1),
@@ -289,158 +300,139 @@ mod tests {
                     Json::Boolean(false),
                 ])),
             ),
-            (
+        test_parse_list_nested: (
                 "[[1],null]",
                 Ok(Json::Array(vec![
                     Json::Array(vec![Json::Integer(1)]),
                     Json::Null,
                 ])),
             ),
-            ("{}", Ok(Json::Object(HashMap::new()))),
-            (
+        test_parse_dict_empty: ("{}", Ok(Json::Object(HashMap::new()))),
+        test_parse_dict_one_item:           (
                 "{\"foo\": 1337}",
                 Ok(Json::Object(HashMap::from([(
                     "foo".to_owned(),
                     Json::Integer(1337),
                 )]))),
             ),
-            (
+        test_parse_dict_two_items: (
                 "{\"foo\": 1337, \"bar\": [69]}",
                 Ok(Json::Object(HashMap::from([
                     ("foo".to_owned(), Json::Integer(1337)),
                     ("bar".to_owned(), Json::Array(vec![Json::Integer(69)])),
                 ]))),
             ),
-            (
+        test_parse_extra_input: (
                 "truefalse",
                 Err(ParseError {
                     offset: 1,
                     message: "Unexpected extra input found".to_owned(),
                 }),
             ),
-            (
+        test_parse_object_fail_1:    (
                 "{",
                 Err(ParseError {
                     offset: 1,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_2:    (
                 "{\"some key\"",
                 Err(ParseError {
                     offset: 2,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_3:    (
                 "{\"some key\":",
                 Err(ParseError {
                     offset: 3,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_4:    (
                 "{\"some key\":\"some value\"",
                 Err(ParseError {
                     offset: 4,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_5:    (
                 "{\"some key\":\"some value\" 3",
                 Err(ParseError {
                     offset: 4,
                     message: "Unexpected token `3` in object".to_owned(),
                 }),
             ),
-            (
-                "{3:\"some value\"",
+            test_parse_object_fail_6: (
+                    "{3:\"some value\"",
                 Err(ParseError {
                     offset: 1,
                     message: "Cannot parse `3` as string".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_7:(
                 "{\"some key\" 3",
                 Err(ParseError {
                     offset: 2,
                     message: "Unexpected token `3` in object".to_owned(),
                 }),
             ),
-            (
+            test_parse_object_fail_8:(
                 "{3",
                 Err(ParseError {
                     offset: 1,
                     message: "Cannot parse `3` as string".to_owned(),
                 }),
             ),
-            (
+            test_parse_array_fail_1:(
                 "[",
                 Err(ParseError {
                     offset: 1,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_array_fail_2:(
                 "[3",
                 Err(ParseError {
                     offset: 2,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_array_fail_3: (
                 "[3,",
                 Err(ParseError {
                     offset: 3,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_array_fail_4:(
                 "[3 5",
                 Err(ParseError {
                     offset: 2,
                     message: "Unexpected token `5` in array".to_owned(),
                 }),
             ),
-            (
+            test_parse_empty: (
                 "",
                 Err(ParseError {
                     offset: 0,
                     message: "Unexpected end of input".to_owned(),
                 }),
             ),
-            (
+            test_parse_int_fail: (
                 "2222222222222222222222222",
                 Err(ParseError {
                     offset: 0,
                     message: "Cannot parse `2222222222222222222222222` as integer".to_owned(),
                 }),
             ),
-            (
+            test_parse_stray_token: (
                 "}",
                 Err(ParseError {
                     offset: 0,
                     message: "Found unexpected token `}`".to_owned(),
                 }),
             ),
-        ];
-
-        for case in cases.iter() {
-            let tokens = tokenize(case.0).unwrap();
-            let json = parse(tokens);
-            assert_eq!(json, case.1);
-        }
-    }
-
-    #[test]
-    fn test_parse_string_key_no_input() {
-        let mut parser = Parser::new(vec![], 0);
-
-        let parse_error = parser.parse_string_key().unwrap_err();
-
-        assert_eq!(
-            parse_error,
-            ParseError::new(0, "Unexpected end of input".to_owned())
-        );
     }
 }
