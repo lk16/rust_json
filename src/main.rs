@@ -30,7 +30,6 @@ fn main() -> ExitCode {
                     ExitCode::from(1)
                 }
             }
-
         }
         Err(error) => {
             println!(
@@ -38,6 +37,6 @@ fn main() -> ExitCode {
                 error.offset, error.message
             );
             ExitCode::from(1)
-        },
+        }
     }
 }
