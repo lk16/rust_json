@@ -1,1 +1,3 @@
 /target
+*.profraw
+/cov_html
